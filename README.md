@@ -1,0 +1,1 @@
+# ruby-bitpay-client
