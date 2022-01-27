@@ -25,7 +25,7 @@ module Bitpay
 
     end
 
-    class Bitpay::Error < StandardError; end
+    class Bitpay::ResponseError < StandardError; end
 
     class Bitpay::ArgumentError < ArgumentError; end
 

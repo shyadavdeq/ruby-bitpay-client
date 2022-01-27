@@ -2,6 +2,21 @@ module Bitpay
 
   module RestConnector
 
+    def get(path:, token: nil, public: false)
+      if token
+        token_prefix = path.include?('?') ? '&token=' : '?token='
+        path = path + token_prefix + token
+      end
+      request = Net::HTTP::Get.new(path)
+
+      unless public
+        request['X-Signature'] = Bitpay::RubyKeyutils.sign(@uri.to_s + path, @priv_key)
+        request['X-Identity'] = @pub_key
+      end
+
+      process_request(request)
+    end
+
     def post(path:, token: nil, params:)
       request = Net::HTTP::Post.new(path)
       params[:token] = token if token
@@ -10,7 +25,9 @@ module Bitpay
       request.body = params.to_json
 
       if token
-        request['X-Signature'] = KeyUtils.sign(@uri.to_s + path + request.body, @priv_key)
+        request['X-Signature'] = Bitpay::RubyKeyutils.sign(
+          @uri.to_s + path + request.body, @priv_key
+        )
         request['X-Identity'] = @pub_key
       end
 
@@ -31,15 +48,15 @@ module Bitpay
       begin
         response = @https.request(request)
       rescue => error
-        raise BitPay::ConnectionError, "#{error.message}"
+        raise ResponseError, "#{error.message}"
       end
 
       if response.kind_of? Net::HTTPSuccess
         JSON.parse(response.body)
       elsif JSON.parse(response.body)["error"]
-        raise(BitPayError, "#{response.code}: #{JSON.parse(response.body)['error']}")
+        raise(ResponseError, "#{response.code}: #{JSON.parse(response.body)['error']}")
       else
-        raise BitPayError, "#{response.code}: #{JSON.parse(response.body)}"
+        raise ResponseError, "#{response.code}: #{JSON.parse(response.body)}"
       end
 
     end
