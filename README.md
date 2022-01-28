@@ -50,7 +50,7 @@ In order to complete authentication, you have to associate your private key with
 
 There are two ways to authenticate, from the client side or the server side. The Ruby Client supports both.
 
-To pair from the server side, you log in to the BitPay server, navigate to dashboard/merchant/api-tokens, and create a new token. This creates a new token, which is associated with your account. It is not associated with a key, so we provide a pairing code that you can use as a one time secret to associate the token with a key. From the client side, you can use the client.pair_pos_client(<pairing_code>) method to associate that method with a key held by the client.
+To pair from the server side, you log in to the BitPay server, navigate to dashboard/merchant/api-tokens, and create a new token. This creates a new token, which is associated with your account. It is not associated with a key, so we provide a pairing code that you can use as a one time secret to associate the token with a key. From the client side, you can use the **client.pair_pos_client(<pairing_code>)** method to associate that method with a key held by the client.
 
 To pair from the client side, you use the client to call the /tokens endpoint on the server with no parameters. This creates a token on the server and associates that token with a public key. What it doesn't do is associate that token to an account (because we don't know what account to associate with). This call returns a pairing code, which is a one time secret that allows you to find the token you just created. In order to associate the token with an account, you log in to the BitPay server, and use the dashboard/merchant/api-tokens interface to associate the token with a specific account. And example of client side pairing is shown below.
 
@@ -59,10 +59,10 @@ To pair from the client side, you use the client to call the /tokens endpoint on
 If you are developing a client with built-in pairing capability, you can pair programattically using the `pair_client` method.  This method can be called in two ways:
 
   * `pair_client()` will perform a client-initiated pairing, and will provide a pairing code that can be entered at https://bitpay.com/dashboard/merchant/api-tokens to assign either `merchant` or `pos` facade.
-  * `pair_client(claimCode)` will complete a server-initiated pairing, when provided a pre-generated pairing code from account https://bitpay.com/dashboard/merchant/api-tokens.
+  * `pair_client(pairingCode)` will complete a server-initiated pairing, when provided a pre-generated pairing code from account https://bitpay.com/dashboard/merchant/api-tokens.
   In this case, the `pos` facade will be automatically assigned.
 
-  See Bitpay::RubyClient.pair_pos_client('claimCode') with validating the claimCode.
+  See Bitpay::RubyClient.pair_pos_client('pairingCode') with validating the pairingCode.
 
 This is an example of creating a client with the BitPay toolset and pairing.
 
@@ -71,20 +71,31 @@ $ gem install ruby-bitpay-client
 Successfully installed ruby-bitpay-client-<version specified>
 1 gem installed
 $ irb
-2.1.1 :001 > require 'bitpay_client'
+3.0.0 :001 > require 'bitpay_client'
  => true
-2.1.2 :002 > pem = Bitpay::Keyutils.generate_pem
- => "-----BEGIN EC PRIVATE KEY-----\nMHQCAQEEIH8oSTRm8lVMTVOsDZleIB8AmkiuHnp+ctEknqeUmZahoAcGBSuBBAAK\noUQDQgAEbjhdKA+X8NEKgcbHhyJaBMvePV7Sj6AQuOMQzuZYdskdkPY1/jlfQwNG\n4GVd/zSw4uhfukw/SDBOEKlQGVAmxQ==\n-----END EC PRIVATE KEY-----\n" 
-2.1.1 :002 > client = Bitpay::RubyClient.new(api_uri: 'https://test.bitpay.com', pem: pem)
- => #<BitPay::RubyClient:0x000000019c6d40 @pem="---... @tokens={}>
+3.0.0 :002 > pem = Bitpay::RubyKeyutils.generate_pem
+ => "-----BEGIN EC PRIVATE KEY-----\nMHQCAQEEIPKZ7l2xy8kR7RPZ5Y6d8XDd/aV+EbHFzOieJPJ+FvJ7oAcGBSuBBAAK\noUQDQgAEr+HBUu71w8fsM2A8Wdp4JdB5S1Zh/7HLj0y9U3QibZSyEN9VzRLHBjmn\nWUbLkRtk88fgiApuaN9a5bFIPNmh5g==\n-----END EC PRIVATE KEY-----\n"
+3.0.0 :003 > client = Bitpay::RubyClient.new(api_uri: 'https://test.bitpay.com', pem: pem, insecure: true)
+ => "#<Bitpay::RubyClient:0x000055c9469abef0 @pem="---... @tokens={}>"
 
  * Note: pass 'insecure: true' when testing locally with HTTP request
 
-2.1.1 :003 > client.pair_client()
- => {"data"=>[{"policies"=>[{"policy"=>"id", "method"=>"inactive", "params"=>["Tf49SFeiUAtytFEW2EUqZgWj32nP51PK73M"]}], "token"=>"BKQyVdaGQZAArdkkSuvtZN5gcN2355c8vXLj5eFPkfuK", "dateCreated"=>1422474475162, "pairingExpiration"=>1422560875162, "pairingCode"=>"Vy76yTh"}]} 
-```
+3.0.0 :006 > client.pair_client()
+ =>
+{"data"=>
+  [{"policies"=>[{"policy"=>"id", "method"=>"inactive", "params"=>["TeyFy1z3JgfKE3RVGHLVdnUeasur8MdpeM2"]}],
+    "token"=>"47UwZQXX1ZdZqrcXmmhbz4FcKWS15LbQJD2yKwfCCfD4",
+    "dateCreated"=>1643348473449,
+    "pairingExpiration"=>1643434873449,
+    "pairingCode"=>"nN1CNCR"}]}
+
 
 As described above, using the value from the `pairingCode` element, visit https://test.bitpay.com/api-tokens and search to register for the appropriate facade. That client is now paired. As previously mentioned, you must save the pem string you generated in order to use the client again.
+
+# Fetches the token approved with the Bitpay account for a client created with unique PEM
+3.0.0 :007 > client.refresh_tokens
+ => {"merchant"=>"47UwZQXX1ZdZqrcXmmhbz4FcKWS15LbQJD2yKwfCCfD4"}
+```
 
 ## General Usage
 
@@ -98,7 +109,13 @@ Optional parameters:
 ### Create a new bitcoin invoice
 
 ```ruby
-invoice = client.create_invoice(price: <price>, currency: <currency>)
+3.0.0 :009 > invoice = client.create_invoice(price: <price>, currency: <currency>, facade: 'merchant')
+ =>
+{"url"=>"https://test.bitpay.com/invoice?id=J74wHKkScJC68nBz253VWa",
+ "status"=>"new",
+ ....}
+
+ Note: For 'pos' we can avoid the argument 'facade: ' while creating invoice.
 ```
 
 With invoice creation, `price` and `currency` are the only required fields. If you are sending a customer from your website to make a purchase, setting `redirectURL` will redirect the customer to your website when the invoice is paid.
