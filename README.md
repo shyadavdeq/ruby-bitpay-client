@@ -157,3 +157,16 @@ Response will be a hash with information on your newly created invoice. Send you
 ```
 
 There are many options available when creating invoices, which are listed in the [BitPay API documentation](https://bitpay.com/bitcoin-payment-gateway-api).
+
+### Get invoice status
+The ruby library provides two methods for fetching an existing invoice:
+
+```ruby
+# For authorized clients with a 'merchant' or 'pos' token
+invoice = client.get_invoice(id: 'PvVhgBfA7wKPWhuVC24rJo')
+
+# For non-authenticated clients (public facade)
+invoice = client.get_public_invoice(id: 'PvVhgBfA7wKPWhuVC24rJo')
+
+# To fetch the invoice with multiple keywords as a filter given in https://bitpay.com/api/#rest-api-resources-invoices-retrieve-invoices-filtered-by-query, follow as below to send keyword required
+invoice = client.get_invoice(id: 'PvVhgBfA7wKPWhuVC24rJo', params: { status: 'complete', dateStart: '2022-01-28'})
