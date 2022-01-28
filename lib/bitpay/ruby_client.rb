@@ -98,6 +98,31 @@ module Bitpay
       end
     end
 
+    # Fetches the invoice with a facade version using the Token and given invoiceID.
+    #
+    # @params id [String] Invoice ID
+    # @params facade [String] Facade name to fetch the version invoice
+    # @params params [Hash] Filter keywords which we need to filter the invoices
+    #   * dateStart
+    #   * dateEnd
+    #   * status
+    #   * orderId
+    #   * limit
+    #   * offset
+    def get_invoice(id:, facade: 'pos', params: {})
+      token = get_token(facade)
+      invoice = get(path: "/invoices/#{id}", token: token, query_filter: query_filter(params))
+      invoice["data"]
+    end
+
+    # Fetches the invoice with a public version on given invoiceID.
+    #
+    # @param id [String] Invoice ID
+    def get_public_invoice(id:)
+      invoice = get(path: "/invoices/#{id}", public: true)
+      invoice["data"]
+    end
+
     private
 
     # Verifies the Pairing Code is valid or not.
@@ -149,6 +174,19 @@ module Bitpay
     # @return [String]
     def get_token(facade)
       refresh_tokens[facade] || raise(ResponseError, "Not authorized for facade: #{facade}")
+    end
+
+    # Returns the query string to filter the invoice records.
+    #
+    # @param (see #get_invoice)
+    def query_filter(params)
+      return if params.empty?
+
+      query = ''
+      params.each do |key, value|
+        query += "&#{key}=#{value}"
+      end
+      query
     end
 
   end

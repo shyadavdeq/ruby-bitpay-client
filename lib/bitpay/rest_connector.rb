@@ -2,13 +2,15 @@ module Bitpay
 
   module RestConnector
 
-    def get(path:, token: nil, public: false)
+    def get(path:, token: nil, public: false, query_filter: nil)
       if token
         token_prefix = path.include?('?') ? '&token=' : '?token='
-        path = path + token_prefix + token
+        path += token_prefix + token
       end
-      request = Net::HTTP::Get.new(path)
 
+      path += query_filter unless query_filter.nil?
+
+      request = Net::HTTP::Get.new(path)
       unless public
         request['X-Signature'] = Bitpay::RubyKeyutils.sign(@uri.to_s + path, @priv_key)
         request['X-Identity'] = @pub_key
