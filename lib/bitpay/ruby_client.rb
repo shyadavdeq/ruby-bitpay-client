@@ -79,6 +79,25 @@ module Bitpay
       pair_client(pairingCode: pairing_code) if pairing_code_valid?(pairing_code)
     end
 
+    # Updates the Client object with the authenticated tokens fetched from server.
+    #
+    # @return [void]
+    def refresh_tokens
+      response = get(path: '/tokens')
+      client_token = {}
+      @tokens = response['data'].inject({}) { |data, value| data.merge(value) }
+    end
+
+    # Creates the Invoice.
+    def create_invoice(price:, currency:, facade: 'pos', params: {})
+      if price_format_valid?(price, currency) && currency_valid?(currency)
+        params.merge!({ price: price, currency: currency })
+        token = get_token(facade)
+        invoice = post(path: '/invoices', token: token, params: params)
+        invoice['data']
+      end
+    end
+
     private
 
     # Verifies the Pairing Code is valid or not.
@@ -94,6 +113,42 @@ module Bitpay
       return true unless regex.match(pairing_code).nil?
 
       raise ArgumentError, 'Pairing code is invalid'
+    end
+
+    # Verifies the invoice price is in required format.
+    #
+    # * If it is invalid, raises Bitpay::ArgumentError.
+    def price_format_valid?(price, currency)
+      float_regex = /^[[:digit:]]+(\.[[:digit:]]{2})?$/
+      return true if price.is_a?(Numeric) ||
+        !float_regex.match(price).nil? ||
+        (currency == 'BTC' && btc_price_format_valid?(price))
+
+      raise ArgumentError, 'Illegal Argument: Price must be formatted as a float'
+    end
+
+    # Verifies the regex for a BTC currency invoice price.
+    def btc_price_format_valid?(price)
+      regex = /^[[:digit:]]+(\.[[:digit:]]{1,6})?$/
+
+      !regex.match(price).nil?
+    end
+
+    # Verifies the invoice currency is valid or not.
+    #
+    # * If it is invalid, raises Bitpay::ArgumentError.
+    def currency_valid?(currency)
+      regex = /^[[:upper:]]{3}$/
+      return true if !regex.match(currency).nil?
+
+      raise ArgumentError, 'Illegal Argument: Currency is invalid'
+    end
+
+    # Returns the token for the given facade of the Bitpay client.
+    #
+    # @return [String]
+    def get_token(facade)
+      refresh_tokens[facade] || raise(ResponseError, "Not authorized for facade: #{facade}")
     end
 
   end
